@@ -1,0 +1,138 @@
+---
+title: "Charting projects by primary commodity against investment risk by Fraser ranking"
+output: html_notebook
+---
+
+Let's get the MI and Fraser data sets. 
+
+
+
+```{r}
+
+
+library(tidyverse)
+
+
+
+library(readr)
+overview_dev_status <- read_csv("C:/Users/mmccrae/Desktop/data for projects country fraser apr 18 2018/overview_dev_status.csv")
+
+fraser_prov <- read_csv("C:/Users/mmccrae/Desktop/data for projects country fraser apr 18 2018/fraser_prov.csv")
+
+fraser_country <- read_csv("C:/Users/mmccrae/Desktop/data for projects country fraser apr 18 2018/fraser_country.csv")
+
+overview_dev_status
+fraser_prov
+fraser_country
+
+
+
+
+```
+
+Let's do some joining
+
+
+```{r}
+
+
+
+joining_prov <- left_join(overview_dev_status,fraser_prov,  by="Province")
+
+joining_country_prorank <- joining_prov %>% rename(c("Ranking"="ProvRanking"))
+
+joining_country_countryrank <- left_join(joining_country_prorank,fraser_country,  by="Country")
+
+
+joining_country_countryrank
+
+```
+
+
+Let's join the two ranking columns
+
+```{r}
+
+
+master <- joining_country_countryrank %>% replace_na(list(ProvRanking=0)) %>% replace_na(list(Ranking=0)) %>% mutate(FraserRank3=ProvRanking+Ranking) %>% select(-ProvRanking, -Ranking) %>% rename(c("FraserRank3"="FraserRank"))
+
+master
+
+
+
+
+
+```
+
+
+Get rid of zero values in Fraser Rank and Development Status
+
+
+```{r}
+
+nozero <- master %>% filter(FraserRank!=0) 
+
+View(nozero)
+
+```
+
+
+Factor development status and acvity status
+
+```{r}
+
+
+nozero$DevelopmentStatus <- factor(nozero$DevelopmentStatus, levels=c("Prospect","Exploration","Advanced Exploration","Preliminary Economic Assessment", "Prefeasibility","Feasibility", "Permitting","Construction","Commissioning","Production","Decommissioning","Closed"))
+
+nozero$ActivityStatus <- factor(nozero$ActivityStatus, levels=c("Prospect","Exploration","Advanced Exploration","Preliminary Economic Assessment", "Prefeasibility","Feasibility", "Permitting","Construction","Commissioning","Production","Decommissioning","Closed"))
+
+
+
+```
+
+
+
+
+Let's plot
+
+```{r}
+
+
+ggplot(nozero, aes(ActivityStatus,FraserRank))+
+  geom_jitter(height = 0, width=.1, alpha=.1)+
+  coord_flip()
+
+
+
+```
+
+
+
+
+```{r}
+
+
+ggplot(nozero, aes(DevelopmentStatus,FraserRank))+
+  geom_boxplot(height = 0, width=.1, alpha=.5)+
+  coord_flip()
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
