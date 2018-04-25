@@ -39,7 +39,7 @@ Let's do some joining
 
 joining_prov <- left_join(overview_dev_status,fraser_prov,  by="Province")
 
-joining_country_prorank <- joining_prov %>% rename(c("Ranking"="ProvRanking"))
+joining_country_prorank <- joining_prov %>% plyr::rename(c("Ranking"="ProvRanking"))
 
 joining_country_countryrank <- left_join(joining_country_prorank,fraser_country,  by="Country")
 
@@ -54,7 +54,7 @@ Let's join the two ranking columns
 ```{r}
 
 
-master <- joining_country_countryrank %>% replace_na(list(ProvRanking=0)) %>% replace_na(list(Ranking=0)) %>% mutate(FraserRank3=ProvRanking+Ranking) %>% select(-ProvRanking, -Ranking) %>% rename(c("FraserRank3"="FraserRank"))
+master <- joining_country_countryrank %>% replace_na(list(ProvRanking=0)) %>% replace_na(list(Ranking=0)) %>% mutate(FraserRank3=ProvRanking+Ranking) %>% select(-ProvRanking, -Ranking) %>% plyr::rename(c("FraserRank3"="FraserRank"))
 
 master
 
@@ -77,12 +77,12 @@ View(nozero)
 ```
 
 
-Factor development status and acvity status
+Factor activity status. Delete erroneous development status. 
 
 ```{r}
 
 
-nozero$DevelopmentStatus <- factor(nozero$DevelopmentStatus, levels=c("Prospect","Exploration","Advanced Exploration","Preliminary Economic Assessment", "Prefeasibility","Feasibility", "Permitting","Construction","Commissioning","Production","Decommissioning","Closed"))
+nozero$DevelopmentStatus <- NULL
 
 nozero$ActivityStatus <- factor(nozero$ActivityStatus, levels=c("Prospect","Exploration","Advanced Exploration","Preliminary Economic Assessment", "Prefeasibility","Feasibility", "Permitting","Construction","Commissioning","Production","Decommissioning","Closed"))
 
@@ -90,8 +90,36 @@ nozero$ActivityStatus <- factor(nozero$ActivityStatus, levels=c("Prospect","Expl
 
 ```
 
+Let's look at the data. Histogram it!
 
 
+
+```{r}
+
+ggplot(nozero, aes(ActivityStatus))+
+  geom_bar() +stat_count(aes(y=..count..,label=..count..),geom="text",vjust=-1)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  ylim(0,13000)
+
+
+
+```
+
+Let's look at the data. How about point data? 
+
+
+
+```{r}
+
+ggplot(nozero, aes(ActivityStatus, FraserRank, size = ..n..)) + 
+  stat_sum(alpha=0.1) +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+ 
+
+
+
+```
 
 Let's plot
 
@@ -106,15 +134,68 @@ ggplot(nozero, aes(ActivityStatus,FraserRank))+
 
 ```
 
-
+Plot using a box plot. 
 
 
 ```{r}
 
 
-ggplot(nozero, aes(DevelopmentStatus,FraserRank))+
+ggplot(nozero, aes(ActivityStatus,FraserRank))+
   geom_boxplot(height = 0, width=.1, alpha=.5)+
   coord_flip()
+
+
+
+
+```
+
+Plot using a box plot. This time clean points, data. 
+
+
+```{r}
+
+boxplot_nozero <- nozero %>% filter(ActivityStatus!="Closed")%>% filter(ActivityStatus!="Decommissioning")
+
+
+ggplot(boxplot_nozero, aes(ActivityStatus,FraserRank))+
+  geom_boxplot(height = 0, width=.1, alpha=.5)+
+  ylim(25,100)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+```
+
+
+Let's try a faceted density chart
+
+```{r}
+
+library(plyr)
+
+
+ggplot(nozero, aes(FraserRank)) + 
+  geom_density() +
+  xlim(0,100) +
+  facet_wrap(~ ActivityStatus) 
+
+
+
+```
+
+Try running as a geom_point with a trendline
+
+
+```{r}
+
+boxplot_nozero <- nozero %>% filter(ActivityStatus!="Closed")%>% filter(ActivityStatus!="Decommissioning")
+
+
+ggplot(boxplot_nozero, aes(ActivityStatus,FraserRank, group=1))+
+  geom_jitter(height = 0, width=.1, alpha=.1, na.rm=TRUE)+
+  stat_summary(fun.y=mean, colour="red", geom="line", size = 3, na.rm=TRUE)+
+  ylim(25,100)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
 
@@ -124,15 +205,62 @@ ggplot(nozero, aes(DevelopmentStatus,FraserRank))+
 
 
 
+Try running as a geom_point with a trendline
+
+
+```{r}
+
+library(Hmisc)
+
+boxplot_nozero <- nozero %>% filter(ActivityStatus!="Closed")%>% filter(ActivityStatus!="Decommissioning")
+
+stat_sum_df <- function(fun, geom="crossbar", ...) {
+  stat_summary(fun.data = fun, colour = "red", geom = geom, width = .5, ...)
+}
+
+
+ggplot(boxplot_nozero, aes(ActivityStatus,FraserRank, group=1))+
+  geom_jitter(height = 0, width=.1, alpha=.1, na.rm=TRUE)+
+  stat_sum_df("mean_cl_boot", mapping = aes(group = 1))+
+  ylim(25,100)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
 
 
+```
 
 
 
 
+```{r}
+
+ggplot(boxplot_nozero, aes(ActivityStatus,FraserRank, group=1))+
+  geom_boxplot(fill="lightblue", group=1, na.rm=TRUE)+
+  geom_jitter(height = 0, width=.1, alpha=.1, na.rm=TRUE)+
+  ylim(25,100)+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+
+```
 
 
 
+Taking the best from both worlds.  
 
+
+
+```{r}
+
+ggplot(boxplot_nozero, aes(ActivityStatus, FraserRank, group=1)) +
+  geom_boxplot(aes(ActivityStatus,FraserRank, group=1),fill="lightblue", group=1, na.rm=TRUE)+
+  stat_sum(alpha=0.2) +
+  theme_minimal()+
+  ylim(25,100)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+ 
+
+
+
+```
